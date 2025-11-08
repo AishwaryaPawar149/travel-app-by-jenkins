@@ -1,9 +1,10 @@
 <?php
-// Show all PHP errors for debugging
+// Enable PHP error reporting (for debugging)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Include config and AWS SDK
 require 'config.php';
 require 'vendor/autoload.php';
 
@@ -11,76 +12,58 @@ use Aws\S3\S3Client;
 use Aws\Exception\AwsException;
 use Dotenv\Dotenv;
 
-// Load .env
+// Load environment variables
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
+// Set error log file
+ini_set("log_errors", 1);
+ini_set("error_log", __DIR__ . "/error.log");
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    // Check if all fields are set
-    if (!isset($_POST['title'], $_POST['location'], $_POST['travel_date'], $_POST['description'], $_FILES['photo'])) {
-        die("❌ Error: Form data not complete.");
-    }
-
     $title = $_POST['title'];
     $location = $_POST['location'];
     $travel_date = $_POST['travel_date'];
     $description = $_POST['description'];
     $photo = $_FILES['photo'];
 
-    // Check file upload
-    if ($photo['error'] !== 0) {
-        die("❌ File upload error: " . $photo['error']);
-    }
-
     $bucket = $_ENV['S3_BUCKET_NAME'];
     $key = 'uploads/' . basename($photo['name']);
 
     // Initialize S3 client
-    try {
-        $s3 = new S3Client([
-            'region' => $_ENV['AWS_DEFAULT_REGION'],
-            'version' => 'latest',
-            'credentials' => [
-                'key' => $_ENV['AWS_KEY'],
-                'secret' => $_ENV['AWS_SECRET'],
-            ]
-        ]);
-    } catch (Exception $e) {
-        die("❌ AWS Client Initialization Error: " . $e->getMessage());
-    }
+    $s3 = new S3Client([
+        'region' => $_ENV['AWS_DEFAULT_REGION'],
+        'version' => 'latest',
+        'credentials' => [
+            'key' => $_ENV['AWS_KEY'],
+            'secret' => $_ENV['AWS_SECRET'],
+        ]
+    ]);
 
     try {
-        // Upload file to S3
-        $result = $s3->putObject([
+        // Upload without ACL (bucket is ACL-disabled)
+        $s3->putObject([
             'Bucket' => $bucket,
             'Key' => $key,
-            'SourceFile' => $photo['tmp_name'],
-            'ACL' => 'public-read',
+            'SourceFile' => $photo['tmp_name']
         ]);
 
-        // Construct public URL
         $photo_url = "https://{$bucket}.s3.{$_ENV['AWS_DEFAULT_REGION']}.amazonaws.com/{$key}";
 
-        // Insert into DB
+        // Save details to database
         $stmt = $conn->prepare("INSERT INTO memories (title, location, travel_date, description, photo_url) VALUES (?, ?, ?, ?, ?)");
-        if (!$stmt) {
-            die("❌ Database prepare statement failed: " . $conn->error);
-        }
         $stmt->bind_param("sssss", $title, $location, $travel_date, $description, $photo_url);
-
-        if (!$stmt->execute()) {
-            die("❌ Database execute failed: " . $stmt->error);
-        }
+        $stmt->execute();
 
         echo "✅ Memory uploaded successfully! <a href='index.php'>Go back</a>";
-
     } catch (AwsException $e) {
-        die("❌ AWS S3 Error: " . $e->getMessage());
+        // Log AWS S3 errors
+        error_log("AWS S3 Error: " . $e->getMessage());
+        echo "❌ AWS Error occurred. Please check the error log.";
     } catch (Exception $e) {
-        die("❌ General Error: " . $e->getMessage());
+        // Log other PHP errors
+        error_log("PHP Error: " . $e->getMessage());
+        echo "❌ An error occurred. Please check the error log.";
     }
-} else {
-    die("❌ Invalid request method.");
 }
 ?>
