@@ -1,10 +1,10 @@
 <?php
-// Enable PHP error reporting (for debugging)
+// Enable error reporting
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Include config and AWS SDK
+// Require config and composer autoload
 require 'config.php';
 require 'vendor/autoload.php';
 
@@ -35,35 +35,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'region' => $_ENV['AWS_DEFAULT_REGION'],
         'version' => 'latest',
         'credentials' => [
-            'key' => $_ENV['AWS_KEY'],
+            'key'    => $_ENV['AWS_KEY'],
             'secret' => $_ENV['AWS_SECRET'],
         ]
     ]);
 
     try {
-        // Upload without ACL (bucket is ACL-disabled)
+        // Upload file to S3 without ACL
         $s3->putObject([
             'Bucket' => $bucket,
-            'Key' => $key,
+            'Key'    => $key,
             'SourceFile' => $photo['tmp_name']
         ]);
 
         $photo_url = "https://{$bucket}.s3.{$_ENV['AWS_DEFAULT_REGION']}.amazonaws.com/{$key}";
 
-        // Save details to database
+        // Insert into database
         $stmt = $conn->prepare("INSERT INTO memories (title, location, travel_date, description, photo_url) VALUES (?, ?, ?, ?, ?)");
         $stmt->bind_param("sssss", $title, $location, $travel_date, $description, $photo_url);
         $stmt->execute();
 
         echo "✅ Memory uploaded successfully! <a href='index.php'>Go back</a>";
+
     } catch (AwsException $e) {
-        // Log AWS S3 errors
+        // Log AWS errors to error.log
         error_log("AWS S3 Error: " . $e->getMessage());
-        echo "❌ AWS Error occurred. Please check the error log.";
+        echo "❌ AWS S3 Error occurred. Check error.log for details.";
     } catch (Exception $e) {
-        // Log other PHP errors
+        // Log other PHP errors to error.log
         error_log("PHP Error: " . $e->getMessage());
-        echo "❌ An error occurred. Please check the error log.";
+        echo "❌ An unexpected error occurred. Check error.log for details.";
     }
 }
 ?>
