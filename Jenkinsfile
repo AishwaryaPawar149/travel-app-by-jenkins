@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        SSH_CRED = 'node-app-key'
-        SERVER_IP = '65.2.136.169'
-        REMOTE_USER = 'ubuntu'
-        WEB_DIR = '/var/www/html/travel-memory-app'
+        SSH_CRED = 'ubuntu'          // Jenkins credential ID containing your EC2 private key
+        SERVER_IP = '65.2.136.169'   // New EC2 instance public IP
+        REMOTE_USER = 'ubuntu'       // Default user for Ubuntu EC2
+        WEB_DIR = '/var/www/html/travel-memory-app'  // Deployment directory
     }
 
     stages {
@@ -21,20 +21,14 @@ pipeline {
                 echo "Deploying project files to target EC2 server..."
                 sshagent (credentials: ["${SSH_CRED}"]) {
                     sh '''
-                    # Clean target directory and recreate it
                     ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "
                         sudo mkdir -p ${WEB_DIR} &&
                         sudo rm -rf ${WEB_DIR}/* &&
                         sudo chown -R ${REMOTE_USER}:${REMOTE_USER} ${WEB_DIR}
                     "
-
-                    # Copy project files
-                    scp -o StrictHostKeyChecking=no -r * ${REMOTE_USER}@${SERVER_IP}:${WEB_DIR}/
-
-                    # Verify deployment
+                    scp -r * ${REMOTE_USER}@${SERVER_IP}:${WEB_DIR}/
                     ssh -o StrictHostKeyChecking=no ${REMOTE_USER}@${SERVER_IP} "
-                        echo 'Deployment completed successfully on server:' &&
-                        ls -la ${WEB_DIR}
+                        sudo systemctl restart apache2
                     "
                     '''
                 }
@@ -44,7 +38,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment Successful!"
+            echo "✅ Deployment successful! Your PHP app is live on http://${SERVER_IP}/"
         }
         failure {
             echo "❌ Deployment Failed! Please check the Jenkins logs."
