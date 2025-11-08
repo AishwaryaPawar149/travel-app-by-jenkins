@@ -13,8 +13,8 @@ pipeline {
         FRONTEND_DIR = "${APP_DIR}/frontend"
         
         // Repository
-        REPO_URL = 'https://github.com/AishwaryaPawar149/my-travel-memories-app-jenkins.git'
-        BRANCH = 'main'
+        REPO_URL = 'https://github.com/AishwaryaPawar149/travel-app-by-jenkins'
+        BRANCH = 'master'
         
         // AWS Configuration
         AWS_REGION = 'ap-south-1'
