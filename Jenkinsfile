@@ -4,7 +4,7 @@ pipeline {
     environment {
         SSH_CRED = 'node-app-key'
         SERVER_IP = '13.203.65.85'
-        REMOTE_USER = 'ubuntu-php'
+        REMOTE_USER = 'ubuntu'
         WEB_DIR = '/var/www/html/travel-memory-app'
     }
 
