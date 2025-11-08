@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         SSH_CRED = 'node-app-key'
-        SERVER_IP = '3.110.25.70'
+        SERVER_IP = '13.203.65.85'
         REMOTE_USER = 'ubuntu'
         WEB_DIR = '/var/www/html/travel-memory-app'
     }
